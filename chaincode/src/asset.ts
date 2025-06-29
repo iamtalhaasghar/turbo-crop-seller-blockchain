@@ -5,22 +5,20 @@
 import {Object, Property} from 'fabric-contract-api';
 
 @Object()
-export class Asset {
+export class Crop {
     @Property()
-    public docType?: string;
+    public CropName?: string;
 
     @Property()
     public ID: string = '';
 
     @Property()
-    public Color: string = '';
+    public HarvestDate: string = '';
 
     @Property()
-    public Size: number = 0;
+    public BatchSize: number = 0;
 
     @Property()
     public Owner: string = '';
 
-    @Property()
-    public AppraisedValue: number = 0;
 }
