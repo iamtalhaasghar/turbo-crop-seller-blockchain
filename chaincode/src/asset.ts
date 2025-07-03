@@ -21,4 +21,6 @@ export class Crop {
     @Property()
     public Owner: string = '';
 
+    @Property()
+    public Status: string = ''; // Possible values: "ready for delivery", "in transit (arrived at xyz city)", "delivered"
 }

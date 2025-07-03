@@ -15,24 +15,27 @@ export class CropTransferContract extends Contract {
         const crops: Crop[] = [
             {
                 ID: 'crop1',
-                CropName: 'Wheat',
+                CropName: 'Mangoes',
                 HarvestDate: '2023-09-15',
                 BatchSize: 100,
-                Owner: 'Farmer1',
+                Owner: 'Usman (Farmer)',
+                Status: 'Harvested from Multan',
             },
             {
                 ID: 'crop2',
                 CropName: 'Corn',
                 HarvestDate: '2023-08-20',
                 BatchSize: 200,
-                Owner: 'Farmer2',
+                Owner: 'Ahmed (Farmer)',
+                Status: 'Available',
             },
             {
                 ID: 'crop3',
                 CropName: 'Rice',
                 HarvestDate: '2023-07-10',
                 BatchSize: 150,
-                Owner: 'Farmer3',
+                Owner: 'Jahanzeb (Farmer)',
+                Status: 'Available',
             },
         ];
 
@@ -43,7 +46,7 @@ export class CropTransferContract extends Contract {
     }
 
     @Transaction()
-    public async CreateCrop(ctx: Context, id: string, cropName: string, harvestDate: string, batchSize: number, owner: string): Promise<void> {
+    public async CreateCrop(ctx: Context, id: string, cropName: string, harvestDate: string, batchSize: number, owner: string, status: string): Promise<void> {
         const exists = await this.CropExists(ctx, id);
         if (exists) {
             throw new Error(`The crop ${id} already exists`);
@@ -55,6 +58,7 @@ export class CropTransferContract extends Contract {
             HarvestDate: harvestDate,
             BatchSize: batchSize,
             Owner: owner,
+            Status: status,
         };
         await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(crop))));
     }
@@ -75,14 +79,32 @@ export class CropTransferContract extends Contract {
             throw new Error(`The crop ${id} does not exist`);
         }
 
+        const cropString = await this.ReadCrop(ctx, id);
+        const crop = JSON.parse(cropString) as Crop;
+
         const updatedCrop = {
             ID: id,
             CropName: cropName,
             HarvestDate: harvestDate,
             BatchSize: batchSize,
             Owner: owner,
+            Status: crop.Status,
         };
         await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(updatedCrop))));
+    }
+
+    @Transaction()
+    public async UpdateCropStatus(ctx: Context, id: string, status: string): Promise<void> {
+        const exists = await this.CropExists(ctx, id);
+        if (!exists) {
+            throw new Error(`The crop ${id} does not exist`);
+        }
+
+        const cropString = await this.ReadCrop(ctx, id);
+        const crop = JSON.parse(cropString) as Crop;
+        crop.Status = status;
+
+        await ctx.stub.putState(id, Buffer.from(stringify(sortKeysRecursive(crop))));
     }
 
     @Transaction()
@@ -130,5 +152,30 @@ export class CropTransferContract extends Contract {
             result = await iterator.next();
         }
         return JSON.stringify(allResults);
+    }
+
+    @Transaction(false)
+    public async GetCropHistory(ctx: Context, cropID: string): Promise<string> {
+        const iterator = await ctx.stub.getHistoryForKey(cropID);
+        const history = [];
+
+        while (true) {
+            const res = await iterator.next();
+            if (res.value) {
+                const record = {
+                    txId: res.value.txId,
+                    timestamp: res.value.timestamp,
+                    isDelete: res.value.isDelete,
+                    value: JSON.parse(res.value.value.toString()), // Parse the value field into a JSON object
+                };
+                history.push(record);
+            }
+            if (res.done) {
+                await iterator.close();
+                break;
+            }
+        }
+
+        return JSON.stringify(history, null, 2); // Pretty-print the JSON output
     }
 }
